@@ -113,6 +113,7 @@ pub fn execute(options: Options, config: &mut Config) -> CliResult {
                                             false),
             message_format: options.flag_message_format,
             release: options.flag_release,
+            profile: None,
             mode: ops::CompileMode::Doc {
                 deps: !options.flag_no_deps,
             },

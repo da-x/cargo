@@ -127,6 +127,7 @@ pub fn execute(options: Options, config: &mut Config) -> CliResult {
         spec: ops::Packages::Packages(&[]),
         mode: ops::CompileMode::Build,
         release: !options.flag_debug,
+        profile: None,
         filter: ops::CompileFilter::new(false,
                                         &options.flag_bin, options.flag_bins,
                                         &[], false,

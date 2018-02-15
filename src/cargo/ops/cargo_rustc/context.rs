@@ -100,6 +100,7 @@ pub struct Context<'a, 'cfg: 'a> {
     target_info: TargetInfo,
     host_info: TargetInfo,
     profiles: &'a Profiles,
+    profile_name: Option<&'a String>,
     incremental_env: Option<bool>,
 
     /// For each Unit, a list all files produced as a triple of
@@ -145,9 +146,13 @@ impl<'a, 'cfg> Context<'a, 'cfg> {
                packages: &'a PackageSet<'cfg>,
                config: &'cfg Config,
                build_config: BuildConfig,
+               profile_name: Option<&'a String>,
                profiles: &'a Profiles) -> CargoResult<Context<'a, 'cfg>> {
 
-        let dest = if build_config.release { "release" } else { "debug" };
+        let dest = match profile_name {
+            None => if build_config.release { "release" } else { "debug" },
+            Some(s) => s.as_str(),
+        };
         let host_layout = Layout::new(ws, None, dest)?;
         let target_layout = match build_config.requested_target.as_ref() {
             Some(target) => Some(Layout::new(ws, Some(target), dest)?),
@@ -187,6 +192,7 @@ impl<'a, 'cfg> Context<'a, 'cfg> {
             build_state: Arc::new(BuildState::new(&build_config)),
             build_config: build_config,
             fingerprints: HashMap::new(),
+            profile_name: profile_name,
             profiles: profiles,
             compiled: HashSet::new(),
             build_scripts: HashMap::new(),
@@ -1050,7 +1056,13 @@ impl<'a, 'cfg> Context<'a, 'cfg> {
         if self.build_config.test {
             test
         } else {
-            normal
+            match self.profile_name {
+                None => normal,
+                Some(name) => {
+                    self.profiles.custom.get(name).expect(
+                        format!("Missing profile {}", name).as_ref())
+                }
+            }
         }
     }
 

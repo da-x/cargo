@@ -94,6 +94,7 @@ pub fn execute(options: Options, config: &mut Config) -> CliResult {
         no_default_features: options.flag_no_default_features,
         spec: spec,
         release: options.flag_release,
+        profile: None,
         mode: ops::CompileMode::Build,
         filter: if examples.is_empty() && bins.is_empty() {
             ops::CompileFilter::Default { required_features_filterable: false, }

@@ -129,6 +129,7 @@ pub fn execute(mut options: Options, config: &mut Config) -> CliResult {
             no_default_features: options.flag_no_default_features,
             spec: spec,
             release: true,
+            profile: None,
             mode: ops::CompileMode::Bench,
             filter: ops::CompileFilter::new(options.flag_lib,
                                             &options.flag_bin, options.flag_bins,

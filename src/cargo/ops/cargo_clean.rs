@@ -40,7 +40,7 @@ pub fn clean(ws: &Workspace, opts: &CleanOptions) -> CargoResult<()> {
                                        jobs: 1,
                                        ..BuildConfig::default()
                                    },
-                                   profiles)?;
+                                   None, profiles)?;
     let mut units = Vec::new();
 
     for spec in opts.spec {
@@ -54,17 +54,23 @@ pub fn clean(ws: &Workspace, opts: &CleanOptions) -> CargoResult<()> {
                 let Profiles {
                     ref release, ref dev, ref test, ref bench, ref doc,
                     ref custom_build, ref test_deps, ref bench_deps, ref check,
-                    ref check_test, ref doctest,
+                    ref check_test, ref doctest, ref custom
                 } = *profiles;
                 let profiles = [release, dev, test, bench, doc, custom_build,
                                 test_deps, bench_deps, check, check_test, doctest];
-                for profile in profiles.iter() {
+                let mut add = |profile| {
                     units.push(Unit {
                         pkg,
                         target,
                         profile,
                         kind: *kind,
                     });
+                };
+                for profile in profiles.iter() {
+                    add(profile);
+                }
+                for profile in custom.values() {
+                    add(profile);
                 }
             }
         }

@@ -609,6 +609,7 @@ impl<'cfg> Workspace<'cfg> {
                 check: Profile::default_check(),
                 check_test: Profile::default_check_test(),
                 doctest: Profile::default_doctest(),
+                custom: HashMap::new(),
             };
 
             for pkg in self.members().filter(|p| p.manifest_path() != root_manifest) {

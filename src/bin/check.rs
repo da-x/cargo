@@ -130,6 +130,7 @@ pub fn execute(options: Options, config: &mut Config) -> CliResult {
         spec: spec,
         mode: ops::CompileMode::Check{test:test},
         release: options.flag_release,
+        profile: None,
         filter: ops::CompileFilter::new(options.flag_lib,
                                         &options.flag_bin, options.flag_bins,
                                         &options.flag_test, options.flag_tests,

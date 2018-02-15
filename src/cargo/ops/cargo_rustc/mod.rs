@@ -139,7 +139,8 @@ pub fn compile_targets<'a, 'cfg: 'a>(ws: &Workspace<'cfg>,
                                      config: &'cfg Config,
                                      build_config: BuildConfig,
                                      profiles: &'a Profiles,
-                                     exec: Arc<Executor>)
+                                     exec: Arc<Executor>,
+                                     profile_name: Option<&'a String>)
                                      -> CargoResult<Compilation<'cfg>> {
     let units = pkg_targets.iter().flat_map(|&(pkg, ref targets)| {
         let default_kind = if build_config.requested_target.is_some() {
@@ -158,7 +159,7 @@ pub fn compile_targets<'a, 'cfg: 'a>(ws: &Workspace<'cfg>,
     }).collect::<Vec<_>>();
 
     let mut cx = Context::new(ws, resolve, packages, config,
-                                   build_config, profiles)?;
+                                   build_config, profile_name, profiles)?;
 
     let mut queue = JobQueue::new(&cx);
 

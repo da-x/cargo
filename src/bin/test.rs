@@ -167,6 +167,7 @@ pub fn execute(mut options: Options, config: &mut Config) -> CliResult {
             no_default_features: options.flag_no_default_features,
             spec: spec,
             release: options.flag_release,
+            profile: None,
             mode: mode,
             filter: filter,
             message_format: options.flag_message_format,

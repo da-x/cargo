@@ -229,6 +229,7 @@ pub struct TomlProfiles {
     bench: Option<TomlProfile>,
     dev: Option<TomlProfile>,
     release: Option<TomlProfile>,
+    custom: Option<BTreeMap<String, TomlProfile>>,
 }
 
 #[derive(Clone, Debug)]
@@ -338,6 +339,7 @@ pub struct TomlProfile {
     #[serde(rename = "overflow-checks")]
     overflow_checks: Option<bool>,
     incremental: Option<bool>,
+    inherits: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1133,6 +1135,8 @@ impl fmt::Debug for PathValue {
 
 fn build_profiles(profiles: &Option<TomlProfiles>) -> Profiles {
     let profiles = profiles.as_ref();
+    let custom = profiles.and_then(|p| p.custom.clone().and_then(Some));
+
     let mut profiles = Profiles {
         release: merge(Profile::default_release(),
                        profiles.and_then(|p| p.release.as_ref())),
@@ -1154,7 +1158,20 @@ fn build_profiles(profiles: &Option<TomlProfiles>) -> Profiles {
         check_test: merge(Profile::default_check_test(),
                           profiles.and_then(|p| p.dev.as_ref())),
         doctest: Profile::default_doctest(),
+        custom: HashMap::new(),
     };
+
+    if let Some(custom) = custom {
+        for (name, profile) in custom.iter() {
+            let mut stack = vec![name.clone()];
+
+            let merged_profile = {
+                get_parent_profile(profile.clone(), &mut stack, &profiles, &custom)
+            };
+            profiles.custom.insert(name.clone(), merged_profile);
+        }
+    }
+
     // The test/bench targets cannot have panic=abort because they'll all get
     // compiled with --test which requires the unwind runtime currently
     profiles.test.panic = None;
@@ -1163,14 +1180,64 @@ fn build_profiles(profiles: &Option<TomlProfiles>) -> Profiles {
     profiles.bench_deps.panic = None;
     return profiles;
 
+    fn get_parent_profile(profile: TomlProfile,
+                          stack: &mut Vec<String>,
+                          profiles: &Profiles,
+                          customs: &BTreeMap<String, TomlProfile>) -> Profile {
+        let custom_prefix = "custom.";
+        let orig_profile = match profile.inherits {
+            None => { panic!(); }
+            Some(ref inherit_name) => {
+                match inherit_name.as_str() {
+                    "release" => profiles.release.clone(),
+                    "dev" => profiles.dev.clone(),
+                    other => {
+                        if other.starts_with(custom_prefix) {
+                            let other_name = &other[custom_prefix.len()..];
+                            // TODO: Check if it is there a loop here
+                            match customs.get(other_name) {
+                                None => { panic!(); }
+                                Some(other_custom_profile) => {
+                                    if stack.iter().any(|x| x == other_name) {
+                                        panic!("Detected loop in profile's 'inherit'");
+                                    }
+                                    stack.push(String::from(other_name));
+                                    get_parent_profile(other_custom_profile.clone(),
+                                                       stack, profiles, customs)
+                                }
+                            }
+                        } else {
+                            panic!();
+                        }
+                    }
+                }
+            }
+        };
+
+        merge_custom(orig_profile, Some(&profile))
+    };
+
+
     fn merge(profile: Profile, toml: Option<&TomlProfile>) -> Profile {
+        merge_common(profile, toml, false)
+    }
+    fn merge_custom(profile: Profile, toml: Option<&TomlProfile>) -> Profile {
+        merge_common(profile, toml, true)
+    }
+    fn merge_common(profile: Profile, toml: Option<&TomlProfile>,
+                    allow_inherit: bool) -> Profile {
         let &TomlProfile {
             ref opt_level, ref lto, codegen_units, ref debug, debug_assertions, rpath,
-            ref panic, ref overflow_checks, ref incremental,
+            ref panic, ref overflow_checks, ref incremental, ref inherits,
         } = match toml {
             Some(toml) => toml,
             None => return profile,
         };
+        if !allow_inherit {
+            if let &Some(_) = inherits {
+                panic!("'inherit' cannot be used on a predefined profile");
+            }
+        }
         let debug = match *debug {
             Some(U32OrBool::U32(debug)) => Some(Some(debug)),
             Some(U32OrBool::Bool(true)) => Some(Some(2)),

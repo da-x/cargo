@@ -12,7 +12,7 @@ use util::important_paths::find_root_manifest_for_wd;
 
 pub use clap::{AppSettings, Arg, ArgMatches};
 pub use {CliError, CliResult, Config};
-pub use core::compiler::CompileMode;
+pub use core::compiler::{BuildProfile, CompileMode};
 
 pub type App = clap::App<'static, 'static>;
 
@@ -105,6 +105,10 @@ pub trait AppExt: Sized {
 
     fn arg_release(self, release: &'static str) -> Self {
         self._arg(opt("release", release))
+    }
+
+    fn arg_profile(self, profile: &'static str) -> Self {
+        self._arg(opt("profile", profile).value_name("PROFILE-NAME"))
     }
 
     fn arg_doc(self, doc: &'static str) -> Self {
@@ -287,7 +291,16 @@ pub trait ArgMatchesExt {
 
         let mut build_config = BuildConfig::new(config, self.jobs()?, &self.target(), mode)?;
         build_config.message_format = message_format;
-        build_config.release = self._is_present("release");
+        build_config.build_profile = if self._is_present("release") {
+            BuildProfile::Release
+        } else {
+            match self._value_of("profile").map(|s| s.to_string()) {
+                None => BuildProfile::Dev,
+                Some(name) => {
+                    BuildProfile::Custom(name)
+                }
+            }
+        };
         build_config.build_plan = self._is_present("build-plan");
         if build_config.build_plan && !config.cli_unstable().unstable_options {
             Err(format_err!(

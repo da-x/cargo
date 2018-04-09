@@ -562,7 +562,7 @@ fn generate_targets<'a>(
             ws.is_member(pkg),
             unit_for,
             target_mode,
-            build_config.release,
+            build_config.build_profile.clone(),
         );
         Unit {
             pkg,

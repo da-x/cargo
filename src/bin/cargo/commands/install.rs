@@ -80,7 +80,11 @@ pub fn exec(config: &mut Config, args: &ArgMatches) -> CliResult {
     config.reload_rooted_at_cargo_home()?;
     let mut compile_opts = args.compile_options(config, CompileMode::Build)?;
 
-    compile_opts.build_config.release = !args.is_present("debug");
+    compile_opts.build_config.build_profile = if !args._is_present("debug") {
+        BuildProfile::Release
+    } else {
+        BuildProfile::Dev
+    };
 
     let krates = args
         .values_of("crate")

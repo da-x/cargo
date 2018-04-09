@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use core::compiler::{BuildConfig, BuildContext, CompileMode, Context, Kind, Unit};
+use core::compiler::{BuildConfig, BuildContext, CompileMode, Context, Kind, Unit, BuildProfile};
 use core::profiles::UnitFor;
 use core::Workspace;
 use ops;
@@ -51,6 +51,11 @@ pub fn clean(ws: &Workspace, opts: &CleanOptions) -> CargoResult<()> {
 
     let profiles = ws.profiles();
     let mut units = Vec::new();
+    let build_profile = if opts.release {
+        BuildProfile::Release
+    } else {
+        BuildProfile::Dev
+    };
 
     for spec in opts.spec.iter() {
         // Translate the spec to a Package
@@ -68,7 +73,7 @@ pub fn clean(ws: &Workspace, opts: &CleanOptions) -> CargoResult<()> {
                                 ws.is_member(pkg),
                                 *unit_for,
                                 CompileMode::Build,
-                                opts.release,
+                                build_profile.clone(),
                             ))
                         } else {
                             profiles.get_profile(
@@ -76,7 +81,7 @@ pub fn clean(ws: &Workspace, opts: &CleanOptions) -> CargoResult<()> {
                                 ws.is_member(pkg),
                                 *unit_for,
                                 *mode,
-                                opts.release,
+                                build_profile.clone(),
                             )
                         };
                         units.push(Unit {
@@ -93,7 +98,7 @@ pub fn clean(ws: &Workspace, opts: &CleanOptions) -> CargoResult<()> {
     }
 
     let mut build_config = BuildConfig::new(config, Some(1), &opts.target, CompileMode::Build)?;
-    build_config.release = opts.release;
+    build_config.build_profile = build_profile;
     let bcx = BuildContext::new(
         ws,
         &resolve,

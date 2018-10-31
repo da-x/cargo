@@ -733,6 +733,7 @@ fn build_base_args<'a, 'cfg>(
         overflow_checks,
         rpath,
         ref panic,
+        ref active_plugins,
         ..
     } = unit.profile;
     let test = unit.mode.is_any_test();
@@ -888,6 +889,12 @@ fn build_base_args<'a, 'cfg>(
         bcx.linker(unit.kind).map(|s| s.as_ref()),
     );
     cmd.args(&cx.incremental_args(unit)?);
+
+    if let Some(active_plugins) = active_plugins {
+        if active_plugins.as_str() != "" {
+            cmd.arg("-Z").arg(&format!("extra-plugins={}", active_plugins));
+        }
+    }
 
     Ok(())
 }

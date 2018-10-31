@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::str;
 
 use core::profiles::Profiles;
-use core::{Dependency, Workspace};
+use core::{Dependency, Workspace, PluginCrateDeps};
 use core::{Package, PackageId, PackageSet, Resolve};
 use util::errors::CargoResult;
 use util::{profile, Cfg, CfgExpr, Config, Rustc};
@@ -209,6 +209,20 @@ impl<'a, 'cfg> BuildContext<'a, 'cfg> {
         }
         inputs.sort();
         Ok(inputs)
+    }
+
+    /// Return the dependencies and crate stop conditions for each plugin's
+    /// activation
+    pub fn get_plugins(&self) -> CargoResult<HashMap<String, (PackageId, PluginCrateDeps)>> {
+        let mut plugins = HashMap::new();
+        for id in self.packages.package_ids() {
+            let pkg = self.get_package(id)?;
+            let manifest = &pkg.manifest();
+            if let Some(deps) = &manifest.plugin_deps() {
+                plugins.insert(id.name().to_string(), (id.clone(), deps.clone()));
+            }
+        }
+        Ok(plugins)
     }
 }
 

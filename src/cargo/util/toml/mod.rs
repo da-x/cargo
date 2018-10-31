@@ -15,7 +15,7 @@ use url::Url;
 use core::dependency::{Kind, Platform};
 use core::manifest::{LibKind, ManifestMetadata, TargetSourcePath, Warnings};
 use core::profiles::Profiles;
-use core::{Dependency, Manifest, PackageId, Summary, Target};
+use core::{Dependency, Manifest, PackageId, Summary, Target, PluginCrateDeps};
 use core::{Edition, EitherManifest, Feature, Features, VirtualManifest};
 use core::{GitReference, PackageIdSpec, SourceId, WorkspaceConfig, WorkspaceRootConfig};
 use sources::CRATES_IO;
@@ -152,7 +152,7 @@ type TomlExampleTarget = TomlTarget;
 type TomlTestTarget = TomlTarget;
 type TomlBenchTarget = TomlTarget;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(untagged)]
 pub enum TomlDependency {
     Simple(String),
@@ -389,6 +389,7 @@ pub struct TomlProfile {
     pub incremental: Option<bool>,
     pub overrides: Option<BTreeMap<ProfilePackageSpec, TomlProfile>>,
     pub build_override: Option<Box<TomlProfile>>,
+    pub active_plugins: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
@@ -868,6 +869,7 @@ impl TomlManifest {
         let replace;
         let patch;
 
+        let mut plugin_deps = None;
         {
             let mut cx = Context {
                 pkgid: Some(&pkgid),
@@ -928,6 +930,29 @@ impl TomlManifest {
 
             replace = me.replace(&mut cx)?;
             patch = me.patch(&mut cx)?;
+
+            if let Some(lib) = &me.lib {
+                if let Some(true) = lib.plugin {
+                    match (&lib.plugin_dependencies,
+                           &lib.plugin_recursive_until_crates)
+                    {
+                        (Some(deps), Some(stop_crates)) => {
+                            let mut vd = Vec::new();
+                            for (n, v) in deps.iter() {
+                                let dep = v.to_dependency(n, &mut cx, None)?;
+                                vd.push(dep.clone());
+                                cx.deps.push(dep);
+                            }
+
+                            plugin_deps = Some(PluginCrateDeps {
+                                dep_crates: vd,
+                                recursive_until_crates: stop_crates.clone(),
+                            })
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
 
         {
@@ -1035,6 +1060,7 @@ impl TomlManifest {
             workspace_config,
             features,
             edition,
+            plugin_deps,
             project.im_a_teapot,
             project.default_run.clone(),
             Rc::clone(me),
@@ -1416,6 +1442,10 @@ struct TomlTarget {
     bench: Option<bool>,
     doc: Option<bool>,
     plugin: Option<bool>,
+    #[serde(rename = "plugin-recursive-until-crates")]
+    plugin_recursive_until_crates: Option<Vec<String>>,
+    #[serde(rename = "plugin-dependencies")]
+    plugin_dependencies: Option<BTreeMap<String, TomlDependency>>,
     #[serde(rename = "proc-macro")]
     proc_macro: Option<bool>,
     #[serde(rename = "proc_macro")]

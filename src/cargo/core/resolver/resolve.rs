@@ -218,11 +218,17 @@ unable to verify that `{0}` is the same as when the lockfile was generated
         from: &PackageId,
         to: &PackageId,
         to_target: &Target,
-    ) -> CargoResult<String> {
+        ) -> CargoResult<String> {
         let deps = if from == to {
             &[]
         } else {
-            self.dependencies_listed(from, to)
+            match self.dependencies_listed(from, to) {
+                None => {
+                    // TODO: verify the implicit dependency is possible
+                    &[]
+                }
+                Some(x) => x
+            }
         };
 
         let crate_name = to_target.crate_name();
@@ -240,7 +246,7 @@ unable to verify that `{0}` is the same as when the lockfile was generated
         Ok(name.to_string())
     }
 
-    fn dependencies_listed(&self, from: &PackageId, to: &PackageId) -> &[Dependency] {
+    fn dependencies_listed(&self, from: &PackageId, to: &PackageId) -> Option<&[Dependency]> {
         // We've got a dependency on `from` to `to`, but this dependency edge
         // may be affected by [replace]. If the `to` package is listed as the
         // target of a replacement (aka the key of a reverse replacement map)
@@ -252,13 +258,11 @@ unable to verify that `{0}` is the same as when the lockfile was generated
         // targets of dependencies not the originator.
         if let Some(replace) = self.reverse_replacements.get(to) {
             if let Some(deps) = self.graph.edge(from, replace) {
-                return deps;
+                return Some(deps);
             }
         }
-        match self.graph.edge(from, to) {
-            Some(ret) => ret,
-            None => panic!("no Dependency listed for `{}` => `{}`", from, to),
-        }
+
+        self.graph.edge(from, to).map(|x| x.as_slice())
     }
 }
 

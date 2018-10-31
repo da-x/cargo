@@ -185,6 +185,7 @@ codegen-units = 9
         incremental: None,
         overrides: None,
         build_override: None,
+        active_plugins: None,
     };
     overrides.insert(key, o_profile);
     let key = toml::ProfilePackageSpec::Spec(::cargo::core::PackageIdSpec::parse("env").unwrap());
@@ -200,6 +201,7 @@ codegen-units = 9
         incremental: None,
         overrides: None,
         build_override: None,
+        active_plugins: None,
     };
     overrides.insert(key, o_profile);
 
@@ -216,6 +218,7 @@ codegen-units = 9
             overflow_checks: Some(true),
             incremental: Some(true),
             overrides: Some(overrides),
+            active_plugins: None,
             build_override: Some(Box::new(toml::TomlProfile {
                 opt_level: Some(toml::TomlOptLevel("1".to_string())),
                 lto: None,
@@ -227,7 +230,8 @@ codegen-units = 9
                 overflow_checks: None,
                 incremental: None,
                 overrides: None,
-                build_override: None
+                build_override: None,
+                active_plugins: None,
             }))
         }
     );

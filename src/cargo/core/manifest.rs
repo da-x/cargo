@@ -24,6 +24,12 @@ pub enum EitherManifest {
     Virtual(VirtualManifest),
 }
 
+#[derive(Clone, Debug)]
+pub struct PluginCrateDeps {
+    pub dep_crates: Vec<Dependency>,
+    pub recursive_until_crates: Vec<String>,
+}
+
 /// Contains all the information about a package, as loaded from a Cargo.toml.
 #[derive(Clone, Debug)]
 pub struct Manifest {
@@ -40,6 +46,7 @@ pub struct Manifest {
     publish_lockfile: bool,
     replace: Vec<(PackageIdSpec, Dependency)>,
     patch: HashMap<Url, Vec<Dependency>>,
+    plugin_deps: Option<PluginCrateDeps>,
     workspace: WorkspaceConfig,
     original: Rc<TomlManifest>,
     features: Features,
@@ -344,6 +351,15 @@ compact_debug! {
     }
 }
 
+impl PluginCrateDeps {
+    pub fn new() -> Self {
+        Self {
+            dep_crates : vec![],
+            recursive_until_crates: vec![],
+        }
+    }
+}
+
 impl Manifest {
     pub fn new(
         summary: Summary,
@@ -361,6 +377,7 @@ impl Manifest {
         workspace: WorkspaceConfig,
         features: Features,
         edition: Edition,
+        plugin_deps: Option<PluginCrateDeps>,
         im_a_teapot: Option<bool>,
         default_run: Option<String>,
         original: Rc<TomlManifest>,
@@ -383,6 +400,7 @@ impl Manifest {
             features,
             edition,
             original,
+            plugin_deps,
             im_a_teapot,
             default_run,
             publish_lockfile,
@@ -451,6 +469,10 @@ impl Manifest {
 
     pub fn features(&self) -> &Features {
         &self.features
+    }
+
+    pub fn plugin_deps(&self) -> &Option<PluginCrateDeps> {
+        &self.plugin_deps
     }
 
     pub fn set_summary(&mut self, summary: Summary) {

@@ -510,6 +510,8 @@ fn generate_targets<'a>(
             profile_for,
             target_mode,
             build_config.release,
+            None,
+            None,
         );
         // Once the profile has been selected for benchmarks, we don't need to
         // distinguish between benches and tests. Switching the mode allows

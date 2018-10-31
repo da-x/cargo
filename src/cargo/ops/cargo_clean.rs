@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use core::compiler::{BuildConfig, BuildContext, CompileMode, Context, Kind, Unit};
-use core::profiles::ProfileFor;
+use core::profiles::{ProfileFor};
 use core::Workspace;
 use ops;
 use util::errors::{CargoResult, CargoResultExt};
@@ -66,6 +66,8 @@ pub fn clean(ws: &Workspace, opts: &CleanOptions) -> CargoResult<()> {
                                 *profile_for,
                                 CompileMode::Build,
                                 opts.release,
+                                None,
+                                None,
                             ))
                         } else {
                             profiles.get_profile(
@@ -74,6 +76,8 @@ pub fn clean(ws: &Workspace, opts: &CleanOptions) -> CargoResult<()> {
                                 *profile_for,
                                 *mode,
                                 opts.release,
+                                None,
+                                None,
                             )
                         };
                         units.push(Unit {

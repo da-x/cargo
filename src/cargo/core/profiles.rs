@@ -1,9 +1,11 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, BTreeSet};
+use std::collections::HashMap;
 use std::{cmp, fmt, hash};
 
 use core::compiler::CompileMode;
 use core::interning::InternedString;
 use core::{Features, PackageId, PackageIdSpec, PackageSet, Shell};
+use core::{PluginCrateDeps};
 use util::errors::CargoResultExt;
 use util::lev_distance::lev_distance;
 use util::toml::{ProfilePackageSpec, StringOrBool, TomlProfile, TomlProfiles, U32OrBool};
@@ -72,6 +74,8 @@ impl Profiles {
         profile_for: ProfileFor,
         mode: CompileMode,
         release: bool,
+        parent_profile: Option<&Profile>,
+        plugin_info: Option<&HashMap<String, (PackageId, PluginCrateDeps)>>,
     ) -> Profile {
         let maker = match mode {
             CompileMode::Test => {
@@ -104,6 +108,38 @@ impl Profiles {
         if profile_for == ProfileFor::TestDependency || mode.is_any_test() {
             profile.panic = None;
         }
+        let name = pkg_id.name();
+
+        if let Some(parent) = &parent_profile {
+            if let Some(active_plugins) = parent.active_plugins {
+                profile.active_plugins = Some(active_plugins.clone());
+            }
+        }
+
+        if let Some(active_plugins) = profile.active_plugins {
+            let active_plugins : BTreeSet<_> = active_plugins.split(",").collect();
+            let active_plugins : Vec<_> = active_plugins.into_iter().filter(|x| {
+                if name.as_str() == *x {
+                    false
+                } else {
+                    if let Some(plugin_info) = &plugin_info {
+                        match plugin_info.get(*x) {
+                            None => true,
+                            Some((_, info)) => {
+                                let v = &info.recursive_until_crates;
+                                let not_found = v.iter().find(|z| *z == name.as_str()).is_none();
+                                not_found
+                            }
+                        }
+                    } else {
+                        true
+                    }
+                }
+            }).collect();
+            profile.active_plugins =
+                Some(InternedString::new(&active_plugins.join(",")));
+        }
+
         profile
     }
 
@@ -367,6 +403,9 @@ fn merge_profile(profile: &mut Profile, toml: &TomlProfile) {
     if let Some(incremental) = toml.incremental {
         profile.incremental = incremental;
     }
+    if let Some(active_plugins) = &toml.active_plugins {
+        profile.active_plugins = Some(InternedString::new(&active_plugins.join(",")));
+    }
 }
 
 /// Profile settings used to determine which compiler flags to use for a
@@ -384,6 +423,7 @@ pub struct Profile {
     pub rpath: bool,
     pub incremental: bool,
     pub panic: Option<InternedString>,
+    pub active_plugins: Option<InternedString>,
 }
 
 impl Default for Profile {
@@ -399,6 +439,7 @@ impl Default for Profile {
             rpath: false,
             incremental: false,
             panic: None,
+            active_plugins: None,
         }
     }
 }
@@ -424,6 +465,7 @@ compact_debug! {
                 overflow_checks
                 rpath
                 incremental
+                active_plugins
                 panic
             )]
         }
@@ -507,6 +549,7 @@ impl Profile {
         &bool,
         &bool,
         &Option<InternedString>,
+        &Option<InternedString>,
     ) {
         (
             &self.opt_level,
@@ -518,6 +561,7 @@ impl Profile {
             &self.rpath,
             &self.incremental,
             &self.panic,
+            &self.active_plugins,
         )
     }
 }
